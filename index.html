@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mafikeng Car Rentals</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#f6f7f9;--fg:#14213d;--muted:#5b6475;--card:#fff;--line:#dfe3ea;--accent:#e08a00;--accent-fg:#14213d;--hero:#14213d;--hero-fg:#fff;--ok:#1b7f3b;--bad:#b3261e}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1626;--fg:#eef1f7;--muted:#9aa5ba;--card:#16223a;--line:#27344f;--accent:#f2a31b;--accent-fg:#0e1626;--hero:#0a111f;--ok:#4ccf7a;--bad:#ff8a80}}
+html{scroll-padding-top:env(safe-area-inset-top,0px);scroll-behavior:smooth}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--fg);line-height:1.5}
+.wrap{max-width:1040px;margin:0 auto;padding:0 16px}
+header{background:var(--hero);color:var(--hero-fg)}
+nav{display:flex;justify-content:space-between;align-items:center;padding:14px 0;gap:12px;flex-wrap:wrap}
+.logo{font-weight:800;font-size:1.15rem;letter-spacing:.2px}.logo span{color:var(--accent)}
+nav a{color:var(--hero-fg);text-decoration:none;margin-left:16px;font-size:.95rem;opacity:.9}
+.hero{padding:44px 0 56px}
+.hero h1{font-size:clamp(1.8rem,5vw,2.9rem);line-height:1.15;margin:0 0 12px;max-width:640px}
+.hero p{max-width:560px;opacity:.9;margin:0 0 22px}
+.btn{display:inline-block;background:var(--accent);color:var(--accent-fg);border:0;border-radius:10px;padding:12px 20px;font-weight:700;font-size:1rem;cursor:pointer;text-decoration:none}
+.btn.alt{background:transparent;border:2px solid var(--accent);color:var(--hero-fg);margin-left:8px}
+section{padding:40px 0}
+h2{font-size:1.6rem;margin:0 0 6px}.sub{color:var(--muted);margin:0 0 22px}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+.card h3{margin:0 0 4px;font-size:1.05rem}
+.rate{font-size:1.5rem;font-weight:800;color:var(--accent)}.rate small{font-size:.8rem;color:var(--muted);font-weight:500}
+.tag{display:inline-block;font-size:.75rem;padding:2px 9px;border-radius:99px;border:1px solid var(--line);color:var(--muted);margin-top:6px}
+.tag.ok{color:var(--ok);border-color:var(--ok)}.tag.bad{color:var(--bad);border-color:var(--bad)}
+.cars{margin-top:18px}.cars .card{display:flex;flex-direction:column;gap:2px}
+form{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+label{display:block;font-size:.85rem;font-weight:600;margin-bottom:4px}
+input,select{width:100%;padding:11px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--fg);font:inherit}
+.full{grid-column:1/-1}
+.total{background:var(--hero);color:var(--hero-fg);border-radius:12px;padding:14px 18px;font-size:1.1rem}
+.total b{color:var(--accent)}
+#msg{margin-top:12px;font-weight:600}
+.list .card{margin-bottom:10px}
+footer{background:var(--hero);color:var(--hero-fg);padding:26px 0;font-size:.9rem;opacity:.95}
+</style>
+</head>
+<body>
+<header>
+<div class="wrap">
+<nav><div class="logo">Mafikeng <span>Car Rentals</span></div>
+<div><a href="#fleet">Fleet</a><a href="#book">Book</a><a href="#mine">My bookings</a><a href="#contact">Contact</a></div></nav>
+<div class="hero">
+<h1>Reliable cars for students and business travelers.</h1>
+<p>Pick a car, choose your dates, and collect it or have it delivered. Simple daily rates, no surprises.</p>
+<a class="btn" href="#book">Book a car</a><a class="btn alt" href="#fleet">View fleet</a>
+</div></div></header>
+
+<main class="wrap">
+<section id="fleet">
+<h2>Our fleet</h2><p class="sub">Choose a category, then see the cars in it.</p>
+<div class="grid" id="cats"></div>
+<div class="grid cars" id="cars"></div>
+</section>
+
+<section id="book">
+<h2>Book a car</h2><p class="sub">Send your request and we will confirm it on WhatsApp.</p>
+<form id="f">
+<div><label>First name</label><input id="fn" required></div>
+<div><label>Last name</label><input id="ln" required></div>
+<div><label>Phone</label><input id="ph" type="tel" required></div>
+<div><label>Email</label><input id="em" type="email" required></div>
+<div><label>Category</label><select id="cat"></select></div>
+<div><label>Vehicle</label><select id="veh" required></select></div>
+<div><label>Start date</label><input id="sd" type="date" required></div>
+<div><label>End date</label><input id="ed" type="date" required></div>
+<div><label>Collection</label><select id="del"><option>Pickup</option><option>Delivery</option></select></div>
+<div id="addrBox" hidden><label>Delivery address</label><input id="addr"></div>
+<div><label>Payment type</label><select id="pt"><option>Pay on collection</option><option>Deposit</option><option>Full payment</option></select></div>
+<div><label>Payment method</label><select id="pm"><option>Cash</option><option>Card</option><option>EFT</option></select></div>
+<div class="full total" id="tot">Select a vehicle and dates to see your total.</div>
+<div class="full"><button class="btn" type="submit">Request booking</button><div id="msg"></div></div>
+</form>
+</section>
+
+<section id="mine">
+<h2>My bookings</h2><p class="sub">Requests made from this device.</p>
+<div class="list" id="list"></div>
+</section>
+
+<section id="contact">
+<h2>Contact us</h2>
+<div class="card">Mafikeng, North West &middot; Phone / WhatsApp: <b id="phone"></b><br>Open daily for collections, returns and deliveries.</div>
+</section>
+</main>
+<footer><div class="wrap">&copy; Mafikeng Car Rentals. All rights reserved.</div></footer>
+
+<script>
+// ---- Edit these: placeholder rates, fleet and contact number ----
+var WHATSAPP="27000000000"; // replace with the business number, format 27XXXXXXXXX
+var CATEGORIES=[
+{id:1,name:"Economy",desc:"Small, fuel-efficient cars for students and city trips.",rate:450},
+{id:2,name:"Sedan",desc:"Comfortable and professional for business travelers.",rate:700},
+{id:3,name:"SUV",desc:"Extra space and comfort for longer road trips.",rate:950},
+{id:4,name:"Minibus",desc:"Groups, teams and group travel.",rate:1500}];
+var VEHICLES=[
+{id:1,make:"Toyota",model:"Starlet",year:2022,seats:5,status:"Available",cat:1},
+{id:2,make:"Suzuki",model:"Swift",year:2023,seats:5,status:"Available",cat:1},
+{id:3,make:"Toyota",model:"Corolla",year:2022,seats:5,status:"Available",cat:2},
+{id:4,make:"VW",model:"Polo Sedan",year:2021,seats:5,status:"Rented",cat:2},
+{id:5,make:"Toyota",model:"Fortuner",year:2022,seats:7,status:"Available",cat:3},
+{id:6,make:"Toyota",model:"Quantum",year:2021,seats:15,status:"Available",cat:4}];
+var KEY="mcr_bookings";
+var $=function(i){return document.getElementById(i)};
+function R(n){return "R"+n.toLocaleString("en-ZA")}
+function load(){try{return JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){return []}}
+function save(a){try{localStorage.setItem(KEY,JSON.stringify(a))}catch(e){}}
+function catOf(id){return CATEGORIES.filter(function(c){return c.id==id})[0]}
+function days(){var s=$("sd").value,e=$("ed").value;if(!s||!e)return 0;var d=Math.round((new Date(e)-new Date(s))/864e5);return d<=0?0:d}
+function busy(vid,s,e){return load().some(function(b){return b.vid==vid&&b.status!="Cancelled"&&s<b.end&&e>b.start})}
+$("phone").textContent="+"+WHATSAPP;
+
+$("cats").innerHTML=CATEGORIES.map(function(c){return '<div class="card"><h3>'+c.name+'</h3><div>'+c.desc+'</div><div class="rate">'+R(c.rate)+' <small>/ day</small></div><button class="btn" style="margin-top:8px;padding:8px 14px" onclick="pick('+c.id+')">See cars</button></div>'}).join("");
+$("cat").innerHTML=CATEGORIES.map(function(c){return '<option value="'+c.id+'">'+c.name+" - "+R(c.rate)+"/day</option>"}).join("");
+
+function showCars(cid){
+$("cars").innerHTML=VEHICLES.filter(function(v){return v.cat==cid}).map(function(v){var ok=v.status=="Available";
+return '<div class="card"><h3>'+v.make+" "+v.model+'</h3><div>'+v.year+" &middot; "+v.seats+' seats</div><span class="tag '+(ok?"ok":"bad")+'">'+v.status+"</span></div>"}).join("")}
+function fillVeh(){var cid=$("cat").value;
+$("veh").innerHTML=VEHICLES.filter(function(v){return v.cat==cid&&v.status=="Available"}).map(function(v){return '<option value="'+v.id+'">'+v.make+" "+v.model+" ("+v.year+")</option>"}).join("")||'<option value="">No cars available</option>';calc()}
+function pick(cid){$("cat").value=cid;showCars(cid);fillVeh()}
+function calc(){var n=days(),c=catOf($("cat").value);
+$("tot").innerHTML=n&&c?'Total for '+n+' day'+(n>1?"s":"")+': <b>'+R(n*c.rate)+'</b>':"Select a vehicle and dates to see your total."}
+$("cat").onchange=function(){showCars(this.value);fillVeh()};
+["sd","ed"].forEach(function(i){$(i).onchange=calc});
+$("del").onchange=function(){var d=this.value=="Delivery";$("addrBox").hidden=!d;$("addr").required=d};
+var t=new Date().toISOString().slice(0,10);$("sd").min=t;$("ed").min=t;
+
+$("f").onsubmit=function(ev){ev.preventDefault();
+var n=days(),c=catOf($("cat").value),v=VEHICLES.filter(function(x){return x.id==$("veh").value})[0],m=$("msg");
+if(!n){m.textContent="End date must be after the start date.";return}
+if(!v){m.textContent="Please choose an available vehicle.";return}
+if(busy(v.id,$("sd").value,$("ed").value)){m.textContent="That car is already requested for those dates. Try another.";return}
+var b={id:"BK"+Date.now().toString().slice(-6),date:t,start:$("sd").value,end:$("ed").value,status:"Pending",delivery:$("del").value,addr:$("addr").value,
+vid:v.id,car:v.make+" "+v.model,total:n*c.rate,ptype:$("pt").value,pmethod:$("pm").value,
+cust:$("fn").value+" "+$("ln").value,phone:$("ph").value,email:$("em").value};
+var a=load();a.push(b);save(a);render();
+var txt="Booking request "+b.id+"%0A"+b.cust+" ("+b.phone+")%0A"+b.car+"%0A"+b.start+" to "+b.end+" ("+n+" days)%0A"+b.delivery+(b.addr?": "+encodeURIComponent(b.addr):"")+"%0ATotal: "+R(b.total)+"%0APayment: "+b.ptype+" / "+b.pmethod;
+m.innerHTML='Request '+b.id+' saved. <a href="https://wa.me/'+WHATSAPP+'?text='+txt+'" target="_blank" rel="noopener">Send it on WhatsApp to confirm</a>.'};
+
+function render(){var a=load().slice().reverse();
+$("list").innerHTML=a.length?a.map(function(b){return '<div class="card"><b>'+b.id+"</b> &middot; "+b.car+'<br>'+b.start+" to "+b.end+" &middot; "+R(b.total)+'<br><span class="tag">'+b.status+"</span></div>"}).join(""):'<div class="card">No bookings yet.</div>'}
+showCars(1);fillVeh();render();
+</script>
+</body>
+</html>
