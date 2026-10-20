@@ -7,8 +7,14 @@ const put=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 const catOf=id=>CATEGORIES.find(c=>c.id==id),vehOf=id=>VEHICLES.find(v=>v.id==id);
 const srch=()=>get("mw_s",{start:"",end:"",mode:"Collection"});
 const nights=s=>{const d=Math.round((new Date(s.end)-new Date(s.start))/864e5);return d>0?d:0};
-const cart=()=>get("mw_cart",[]),books=()=>get("mw_b",[]);
-const free=(v,s)=>v.status=="Available"&&!books().some(b=>b.vids.includes(v.id)&&b.status!="Cancelled"&&s.start<b.end&&s.end>b.start);
+const cart=()=>get("mw_cart",[]).filter(id=>vehOf(id));
+// Data now comes from the database through the API. data.js is only a fallback for browsing if the API is down.
+const API=(CONFIG.api||"").replace(/\/$/,"");
+let ONLINE=false,BUSY=[];
+const api=async(path,opt)=>{const r=await fetch(API+path,opt);let j={};try{j=await r.json()}catch(e){}if(!r.ok)throw new Error(j.error||"Request failed");return j};
+async function load(){try{const d=await api("/api/fleet");CATEGORIES=d.categories;VEHICLES=d.vehicles;Object.assign(CONFIG,d.config);ONLINE=true}catch(e){ONLINE=false}}
+async function loadBusy(s){BUSY=[];if(!ONLINE||!nights(s))return;try{BUSY=(await api("/api/availability?start="+s.start+"&end="+s.end)).booked}catch(e){}}
+const free=(v,s)=>v.status=="Available"&&!BUSY.includes(v.id);
 const wa=t=>"https://wa.me/"+CONFIG.whatsapp+"?text="+encodeURIComponent(t||"Hi, I would like to book a car.");
 const pic=(n,e,a)=>`<div class="pic">${e}<img src="${n}.jpg" alt="${esc(a)}" onerror="this.remove()"></div>`;
 function quote(){const s=srch(),n=nights(s),c=cart(),sub=c.reduce((t,id)=>t+catOf(vehOf(id).cat).rate*n,0);
@@ -30,9 +36,10 @@ function home(){searchBar($("sb"));
 
 function tog(id){let c=cart();c=c.includes(id)?c.filter(x=>x!=id):c.concat(id);put("mw_cart",c);chrome0();fleet()}
 function chrome0(){document.querySelector("header").remove();document.querySelector("footer").remove();document.querySelector(".wa").remove();chrome()}
-function fleet(){const s=srch(),ok=nights(s)>0,q=new URLSearchParams(location.search).get("cat"),c=cart();
- $("app").innerHTML=`<h2>Our fleet</h2><div id="sb"></div><div class="chips"><a href="fleet.html">All</a>${CATEGORIES.map(k=>`<a href="fleet.html?cat=${k.id}">${k.name}</a>`).join("")}</div>${ok?"":'<p class="note">Choose your dates above to see which cars are free.</p>'}<div class="grid" id="cars"></div>`;
+async function fleet(){const s=srch(),ok=nights(s)>0,q=new URLSearchParams(location.search).get("cat"),c=cart();
+ $("app").innerHTML=`<h2>Our fleet</h2><div id="sb"></div><div class="chips"><a href="fleet.html">All</a>${CATEGORIES.map(k=>`<a href="fleet.html?cat=${k.id}">${k.name}</a>`).join("")}</div>${ONLINE?"":'<p class="note">Live availability is unavailable right now, so bookings are paused. Please WhatsApp us.</p>'}${ok?"":'<p class="note">Choose your dates above to see which cars are free.</p>'}<div class="grid" id="cars"></div>`;
  searchBar($("sb"));
+ await loadBusy(s);
  $("cars").innerHTML=VEHICLES.filter(v=>!q||v.cat==q).map(v=>{const k=catOf(v.cat),f=ok&&free(v,s),inC=c.includes(v.id);
   const st=!ok?v.status:f?"Available for your dates":v.status=="Available"?"Booked for your dates":v.status;
   const btn=inC?`<button class="btn out" onclick="tog(${v.id})">Remove</button>`:f?`<button class="btn" onclick="tog(${v.id})">Add to booking</button>`:`<button class="btn" disabled>${ok?"Not available":"Choose dates first"}</button>`;
@@ -58,17 +65,20 @@ ${q.s.mode=="Delivery"?`<div class="full"><label for="ad">Delivery address (${CO
 <p class="full note">Demo checkout: no real payment is taken and card details are not saved. Connect a payment gateway before going live.</p>
 <div class="full"><button class="btn" type="submit">Pay deposit ${R(q.deposit)}</button><p id="err"></p></div></form>`;
  $("pm").onchange=()=>{const c=$("pm").value=="Card";$("cb").hidden=!c;$("eb").hidden=c};
- $("cf").onsubmit=e=>{e.preventDefault();const q=quote(),pm=$("pm").value,er=$("err");
-  if(!cart().every(id=>free(vehOf(id),q.s))){er.textContent="A car in your booking is no longer available for these dates. Please update your booking.";return}
+ $("cf").onsubmit=async e=>{e.preventDefault();const q=quote(),pm=$("pm").value,er=$("err"),bt=e.target.querySelector("button[type=submit]");
   if(pm=="Card"&&(!/^\d{13,19}$/.test($("cn").value.replace(/\s/g,""))||!/^\d{2}\/\d{2}$/.test($("cx").value)||!/^\d{3,4}$/.test($("cv").value))){er.textContent="Please check your card details.";return}
-  const ref="MW"+Date.now().toString().slice(-7),a=books();
-  a.push({ref,date:today(),start:q.s.start,end:q.s.end,status:"Confirmed",mode:q.s.mode,addr:($("ad")||{}).value||"",vids:cart(),total:q.total,deposit:q.deposit,
-   cust:{fn:$("fn").value,ln:$("ln").value,ph:$("ph").value,em:$("em").value},pay:[{type:"Deposit",method:pm,amount:q.deposit,date:today()}]});
-  put("mw_b",a);put("mw_cart",[]);location.href="confirmation.html?ref="+ref}}
+  if(!ONLINE){er.textContent="The booking service is unavailable right now. Please try again shortly or WhatsApp us.";return}
+  bt.disabled=true;er.textContent="Saving your booking...";
+  try{ // card details are checked above and are never sent or saved
+   const r=await api("/api/book",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({start:q.s.start,end:q.s.end,mode:q.s.mode,address:($("ad")||{}).value||"",vehicleIds:cart(),paymentMethod:pm,
+    customer:{fn:$("fn").value,ln:$("ln").value,ph:$("ph").value,em:$("em").value}})});
+   put("mw_cart",[]);location.href="confirmation.html?ref="+encodeURIComponent(r.ref)}
+  catch(x){er.textContent=x.message;bt.disabled=false}}}
 
-function conf(){const b=books().find(x=>x.ref==new URLSearchParams(location.search).get("ref")),el=$("app");
- if(!b){el.innerHTML='<h2>Booking not found</h2><a class="btn" href="index.html">Back to home</a>';return}
- const cars=b.vids.map(id=>{const v=vehOf(id);return v.make+" "+v.model}).join(", ");
- el.innerHTML=`<h2>Booking confirmed</h2><div class="card sum"><p>Booking reference: <b class="ref">${esc(b.ref)}</b></p><p>Name: ${esc(b.cust.fn+" "+b.cust.ln)}</p><p>Car(s): ${esc(cars)}</p><p>${b.start} to ${b.end} &middot; ${b.mode}${b.addr?": "+esc(b.addr):""}</p><p>Total: ${R(b.total)}</p><p>Deposit paid (${b.pay[0].method}): ${R(b.deposit)}</p><p>Final Payment due on ${b.mode.toLowerCase()}: <b>${R(b.total-b.deposit)}</b></p></div><p><a class="btn" target="_blank" rel="noopener" href="${wa("Booking "+b.ref+": "+cars+", "+b.start+" to "+b.end+" ("+b.mode+")")}">Message us on WhatsApp</a></p>`}
+async function conf(){const el=$("app");let b;
+ try{b=await api("/api/booking?ref="+encodeURIComponent(new URLSearchParams(location.search).get("ref")||""))}
+ catch(e){el.innerHTML='<h2>Booking not found</h2><p>'+esc(e.message)+'</p><a class="btn" href="index.html">Back to home</a>';return}
+ const cars=b.cars.join(", ");
+ el.innerHTML=`<h2>Booking confirmed</h2><div class="card sum"><p>Booking reference: <b class="ref">${esc(b.ref)}</b></p><p>Name: ${esc(b.name)}</p><p>Car(s): ${esc(cars)}</p><p>${esc(b.start)} to ${esc(b.end)} &middot; ${esc(b.mode)}${b.address?": "+esc(b.address):""}</p><p>Total: ${R(b.total)}</p><p>Deposit paid (${esc(b.method)}): ${R(b.deposit)}</p><p>Final Payment due on ${esc(b.mode.toLowerCase())}: <b>${R(b.total-b.deposit)}</b></p></div><p><a class="btn" target="_blank" rel="noopener" href="${wa("Booking "+b.ref+": "+cars+", "+b.start+" to "+b.end+" ("+b.mode+")")}">Message us on WhatsApp</a></p>`}
 
-chrome();({home,fleet,cart:cartPage,checkout,confirmation:conf})[document.body.dataset.page]();
+chrome();load().then(()=>{chrome0();({home,fleet,cart:cartPage,checkout,confirmation:conf})[document.body.dataset.page]()});
