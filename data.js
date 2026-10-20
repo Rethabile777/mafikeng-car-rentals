@@ -1,8 +1,8 @@
 // EDIT THIS FILE to change business details, prices and cars.
 var CONFIG={
   name:"Mafikeng Wheels Car Rental",
-  whatsapp:"27000000000",   // TODO: real number, format 27XXXXXXXXX
-  phone:"+27 00 000 0000",  // TODO
+  whatsapp:"+27 67 316 3109",   // TODO: real number, format 27XXXXXXXXX
+  phone:"+27 84 345 4872",  // TODO
   deliveryFee:100,          // TEMP: set 0 for no delivery fee
   deliveryAreas:"Mafikeng and Mmabatho",
   depositPct:0.3,           // TEMP: share of total paid online as the deposit
